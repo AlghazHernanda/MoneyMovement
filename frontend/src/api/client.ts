@@ -13,6 +13,15 @@ export type Asset = {
   created_at: string;
   updated_at: string;
 };
+export type BalanceChange = {
+  id: number;
+  assetId: string;
+  /** null = saldo awal saat aset dibuat */
+  previousBalance: number | null;
+  newBalance: number;
+  delta: number;
+  changedAt: string;
+};
 export type Summary = {
   cash: number;
   investment: number;
@@ -127,6 +136,13 @@ export const api = {
   updateAsset: (id: string, data: Partial<Pick<Asset, 'name' | 'category' | 'balance'>>) =>
     request<{ item: Asset }>(`/assets/${encodeURIComponent(id)}`, json('PATCH', data)),
   deleteAsset: (id: string) => request<void>(`/assets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  updateBalance: (id: string, balance: number) =>
+    request<{ item: Asset; change: BalanceChange }>(
+      `/assets/${encodeURIComponent(id)}/balance`,
+      json('POST', { balance }),
+    ),
+  listBalanceChanges: (id: string, limit = 20) =>
+    request<{ items: BalanceChange[] }>(`/assets/${encodeURIComponent(id)}/balance-changes?limit=${limit}`),
 
   summary: () => request<Summary>('/networth/summary'),
   history: (range: Range) => request<History>(`/networth/history?range=${range}`),

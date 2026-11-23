@@ -11,6 +11,17 @@ supabase/  SQL migration (tabel, trigger snapshot, RLS)
 Alur request: `Browser -> /api/v1/* (Vite proxy) -> Gateway (helmet, CORS, rate limit, auth JWT, validasi Zod) -> Supabase`.
 Query data user memakai JWT user sehingga **Row Level Security** tetap berlaku. Service role key hanya dipakai di backend untuk register dan lookup username saat login.
 
+### Struktur modul backend
+```
+backend/src/modules/<modul>/
+  <modul>.routes.ts    # HTTP: validasi input -> panggil service -> kirim response
+  <modul>.schemas.ts   # skema Zod (input request)
+  <modul>.service.ts   # logika bisnis + akses Supabase, tanpa ketergantungan ke Fastify
+```
+Semua modul (`auth`, `assets`, `networth`) memakai pola ini.
+
+Migration dijalankan berurutan: `001_init.sql`, lalu `002_asset_balance_changes.sql`.
+
 ## Setup
 
 ### 1. Database
@@ -45,6 +56,8 @@ Untuk mencoba dari HP di jaringan Wi-Fi yang sama, buka `http://<IP-laptop>:5173
 | POST | `/assets` | Bearer | `{ type, name, category, balance }` |
 | PATCH | `/assets/:id` | Bearer | `{ name?, category?, balance? }` |
 | DELETE | `/assets/:id` | Bearer | hapus aset |
+| POST | `/assets/:id/balance` | Bearer | `{ balance }` set saldo baru, response berisi selisih + timestamp |
+| GET | `/assets/:id/balance-changes?limit=20` | Bearer | riwayat perubahan saldo, terbaru di atas |
 | GET | `/networth/summary` | Bearer | total cash, investasi, networth, per kategori |
 | GET | `/networth/history?range=1M\|3M\|6M\|1Y\|2Y` | Bearer | titik grafik harian (WIB) |
 

@@ -1,26 +1,35 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { ApiError, type Asset, type AssetType } from '../api/client';
 import { formatMoneyInput, parseMoneyInput } from '../format';
+import { BalanceSection } from './BalanceSection';
 
 const CATEGORY_SUGGESTIONS: Record<AssetType, string[]> = {
   cash: ['Bank', 'E-Wallet', 'Tunai'],
   investment: ['Saham', 'Crypto', 'Reksa Dana', 'Emas', 'Obligasi', 'Deposito'],
 };
 
-type Values = { name: string; category: string; balance: number };
+export type CreateValues = { name: string; category: string; balance: number };
+export type EditValues = { name: string; category: string };
 
 type Props = {
   type: AssetType;
-  asset?: Asset;
   onClose: () => void;
-  onSave: (values: Values) => Promise<void>;
-  onDelete?: () => Promise<void>;
-};
+} & (
+  | { asset?: undefined; onCreate: (values: CreateValues) => Promise<void> }
+  | {
+      asset: Asset;
+      onEdit: (values: EditValues) => Promise<void>;
+      onDelete: () => Promise<void>;
+      onBalanceUpdated: (asset: Asset) => void;
+    }
+);
 
-export function AssetSheet({ type, asset, onClose, onSave, onDelete }: Props) {
+export function AssetSheet(props: Props) {
+  const { type, asset, onClose } = props;
+  const formId = useId();
   const [name, setName] = useState(asset?.name ?? '');
   const [category, setCategory] = useState(asset?.category ?? CATEGORY_SUGGESTIONS[type][0]!);
-  const [balance, setBalance] = useState(asset?.balance ?? 0);
+  const [balance, setBalance] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -46,61 +55,71 @@ export function AssetSheet({ type, asset, onClose, onSave, onDelete }: Props) {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    void run(() => onSave({ name: name.trim(), category: category.trim(), balance }));
+    const base = { name: name.trim(), category: category.trim() };
+    if (props.asset) void run(() => props.onEdit(base));
+    else void run(() => props.onCreate({ ...base, balance }));
   }
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <form className="sheet" onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} noValidate>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="sheet-handle" />
         <h3>{asset ? `Ubah ${label}` : `Tambah ${label}`}</h3>
-        <label>
-          Nama
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePlaceholder} maxLength={60} />
-        </label>
-        <label>
-          Kategori
-          <input
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            list={`categories-${type}`}
-            maxLength={40}
-          />
-          <datalist id={`categories-${type}`}>
-            {CATEGORY_SUGGESTIONS[type].map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </label>
-        <label>
-          {type === 'cash' ? 'Saldo (Rp)' : 'Nilai saat ini (Rp)'}
-          <input
-            inputMode="numeric"
-            value={formatMoneyInput(balance)}
-            onChange={(e) => setBalance(parseMoneyInput(e.target.value))}
-            placeholder="0"
-          />
-        </label>
+
+        <form id={formId} className="sheet-form" onSubmit={onSubmit} noValidate>
+          <label>
+            Nama
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePlaceholder} maxLength={60} />
+          </label>
+          <label>
+            Kategori
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              list={`categories-${type}`}
+              maxLength={40}
+            />
+            <datalist id={`categories-${type}`}>
+              {CATEGORY_SUGGESTIONS[type].map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </label>
+          {!asset && (
+            <label>
+              {type === 'cash' ? 'Saldo (Rp)' : 'Nilai saat ini (Rp)'}
+              <input
+                inputMode="numeric"
+                value={formatMoneyInput(balance)}
+                onChange={(e) => setBalance(parseMoneyInput(e.target.value))}
+                placeholder="0"
+              />
+            </label>
+          )}
+        </form>
+
+        {props.asset && <BalanceSection asset={props.asset} onUpdated={props.onBalanceUpdated} />}
+
         {error && <p className="error" role="alert">{error}</p>}
-        <button className="btn primary" disabled={busy || !name.trim() || !category.trim()}>
-          {busy ? 'Menyimpan…' : 'Simpan'}
+        <button type="submit" form={formId} className="btn primary" disabled={busy || !name.trim() || !category.trim()}>
+          {busy ? 'Menyimpan…' : asset ? 'Simpan Nama & Kategori' : 'Simpan'}
         </button>
-        {onDelete && (
+        {props.asset && (
           <button
             type="button"
             className="btn danger"
             disabled={busy}
             onClick={() => {
-              if (confirm(`Hapus "${asset?.name}"?`)) void run(onDelete);
+              if (confirm(`Hapus "${props.asset.name}"? Riwayat saldonya juga akan terhapus.`)) void run(props.onDelete);
             }}
           >
             Hapus
           </button>
         )}
         <button type="button" className="btn ghost" onClick={onClose} disabled={busy}>
-          Batal
+          {asset ? 'Tutup' : 'Batal'}
         </button>
-      </form>
+      </div>
     </div>
   );
 }

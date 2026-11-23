@@ -31,6 +31,20 @@ export const formatFullDate = (iso: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
+/** Selisih bertanda: "+Rp 5.000.000" / "−Rp 2.000.000". */
+export const formatDeltaIDR = (delta: number) => `${delta >= 0 ? '+' : '−'}${formatIDR(Math.abs(delta))}`;
+
+/** Timestamp ISO -> "22 Nov 2026, 17.30 WIB". */
+export const formatDateTime = (iso: string) =>
+  `${new Date(iso).toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })} WIB`;
+
 /** Input uang: ambil digit saja, tampilkan dengan titik ribuan. */
 export const parseMoneyInput = (text: string): number => Number(text.replace(/\D/g, '') || '0');
 export const formatMoneyInput = (value: number): string => (value ? value.toLocaleString('id-ID') : '');

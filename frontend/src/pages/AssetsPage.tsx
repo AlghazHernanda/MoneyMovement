@@ -75,25 +75,33 @@ export function AssetsPage({ type }: { type: AssetType }) {
         +
       </button>
 
-      {sheet && (
+      {sheet?.mode === 'create' && (
         <AssetSheet
-          key={sheet.mode === 'edit' ? sheet.asset.id : 'new'}
+          key="new"
           type={type}
-          asset={sheet.mode === 'edit' ? sheet.asset : undefined}
           onClose={() => setSheet(null)}
-          onSave={async (values) => {
-            if (sheet.mode === 'edit') await api.updateAsset(sheet.asset.id, values);
-            else await api.createAsset({ type, ...values });
+          onCreate={async (values) => {
+            await api.createAsset({ type, ...values });
             load();
           }}
-          onDelete={
-            sheet.mode === 'edit'
-              ? async () => {
-                  await api.deleteAsset(sheet.asset.id);
-                  load();
-                }
-              : undefined
-          }
+        />
+      )}
+      {sheet?.mode === 'edit' && (
+        <AssetSheet
+          key={sheet.asset.id}
+          type={type}
+          asset={sheet.asset}
+          onClose={() => setSheet(null)}
+          onEdit={async (values) => {
+            await api.updateAsset(sheet.asset.id, values);
+            load();
+          }}
+          onDelete={async () => {
+            await api.deleteAsset(sheet.asset.id);
+            load();
+          }}
+          // Sheet tetap terbuka supaya user melihat selisih & timestamp; daftar di belakang ikut diperbarui.
+          onBalanceUpdated={load}
         />
       )}
     </div>
