@@ -1,0 +1,642 @@
+{
+  "info": {
+    "_postman_id": "6f0b7d1e-4c2a-4b8e-9a51-0d3c2f7e9a11",
+    "name": "MoneyMovement API",
+    "description": "API Gateway MoneyMovement (prefix /api/v1).\n\nCara pakai:\n1. Import collection ini + environment `MoneyMovement Local`, lalu pilih environment tersebut.\n2. Jalankan `Auth > Register` (username & email dibuat acak otomatis) atau `Auth > Login` dengan username/password yang sudah ada.\n3. Token tersimpan otomatis ke variabel `accessToken` & `refreshToken`. Semua request lain memakai Bearer `{{accessToken}}`.\n4. `Assets > Create Asset` menyimpan `assetId` untuk request Update/Delete/Balance.\n\nFormat error: `{ \"error\": { \"code\", \"message\", \"details\"? } }`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{host}}/health", "host": ["{{host}}"], "path": ["health"] },
+            "description": "Cek gateway hidup. Tidak butuh token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 status ok', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"phone\": \"{{phone}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "description": "Membuat akun baru lalu langsung login.\n\nValidasi:\n- username: 3-30 karakter, huruf kecil/angka/underscore (otomatis lowercase)\n- email: format email valid\n- phone: format Indonesia, contoh 081234567890 / +6281234567890\n- password: 8-72 karakter\n\nPre-request script membuat username & email acak agar bisa dijalankan berulang.\n\nRate limit: 10 request/menit."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Username & email unik setiap kali Register dijalankan.",
+                  "const suffix = Date.now().toString(36);",
+                  "pm.environment.set('username', `user_${suffix}`);",
+                  "pm.environment.set('email', `user_${suffix}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Mengembalikan user & session', () => {",
+                  "  pm.expect(body.user.username).to.eql(pm.environment.get('username'));",
+                  "  pm.expect(body.user.phone).to.eql(pm.environment.get('phone'));",
+                  "  pm.expect(body.session.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.session.refreshToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (body.session) {",
+                  "  pm.environment.set('accessToken', body.session.accessToken);",
+                  "  pm.environment.set('refreshToken', body.session.refreshToken);",
+                  "  pm.environment.set('userId', body.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Login dengan username + password. Username tidak case-sensitive.\n\nUsername tidak ada dan password salah menghasilkan respons yang sama (401 INVALID_CREDENTIALS).\n\nRate limit: 10 request/menit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Session berisi token', () => {",
+                  "  pm.expect(body.session.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.user.username).to.eql(pm.environment.get('username').toLowerCase());",
+                  "});",
+                  "if (body.session) {",
+                  "  pm.environment.set('accessToken', body.session.accessToken);",
+                  "  pm.environment.set('refreshToken', body.session.refreshToken);",
+                  "  pm.environment.set('userId', body.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] },
+            "description": "Tukar refresh token dengan session baru. Refresh token lama tidak bisa dipakai lagi setelah ditukar."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK + session baru', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.session.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (body.session) {",
+                  "  pm.environment.set('accessToken', body.session.accessToken);",
+                  "  pm.environment.set('refreshToken', body.session.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me (Profil)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] },
+            "description": "Profil user yang sedang login."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK + profil milik user', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.user.id).to.eql(pm.environment.get('userId'));",
+                  "  pm.expect(body.user).to.have.keys('id', 'username', 'email', 'phone', 'created_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Assets",
+      "item": [
+        {
+          "name": "Create Asset (Cash)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"cash\",\n  \"name\": \"BCA\",\n  \"category\": \"Bank\",\n  \"balance\": 120000000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/assets", "host": ["{{baseUrl}}"], "path": ["assets"] },
+            "description": "Tambah aset. `type`: `cash` | `investment`. `balance` >= 0 (angka, maks 2 desimal). Saldo awal otomatis tercatat di riwayat saldo.\n\nMenyimpan `assetId` ke environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Data aset sesuai input', () => {",
+                  "  pm.expect(body.item).to.include({ type: 'cash', name: 'BCA', category: 'Bank', balance: 120000000 });",
+                  "  pm.expect(body.item).to.not.have.property('user_id');",
+                  "});",
+                  "if (body.item) pm.environment.set('assetId', body.item.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Asset (Investment)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"investment\",\n  \"name\": \"Bitcoin\",\n  \"category\": \"Crypto\",\n  \"balance\": 25000000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/assets", "host": ["{{baseUrl}}"], "path": ["assets"] },
+            "description": "Contoh aset investasi. Menyimpan `investmentAssetId` ke environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created + type investment', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(body.item.type).to.eql('investment');",
+                  "});",
+                  "if (body.item) pm.environment.set('investmentAssetId', body.item.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Assets",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/assets?type=cash",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets"],
+              "query": [
+                { "key": "type", "value": "cash", "description": "Opsional: cash | investment. Kosongkan untuk semua." }
+              ]
+            },
+            "description": "Daftar aset milik user, urut dari yang paling lama dibuat."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK + hanya type cash', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  body.items.forEach((a) => pm.expect(a.type).to.eql('cash'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Asset (Nama/Kategori)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"BCA Utama\",\n  \"category\": \"Bank\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "{{assetId}}"]
+            },
+            "description": "Ubah nama dan/atau kategori. Minimal satu field. Untuk mengubah saldo dengan riwayat, pakai `Update Balance`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + nama berubah', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().item.name).to.eql('BCA Utama');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Balance",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"balance\": 125000000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{assetId}}/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "{{assetId}}", "balance"]
+            },
+            "description": "Set saldo baru. Response berisi aset terbaru + perubahan yang tercatat (selisih & timestamp).\n\nContoh: saldo 120.000.000 -> 125.000.000 menghasilkan `change.delta = 5000000`.\n\nSaldo yang sama dengan saldo saat ini ditolak: 400 NO_CHANGE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Saldo & selisih benar', () => {",
+                  "  pm.expect(body.item.balance).to.eql(125000000);",
+                  "  pm.expect(body.change.newBalance).to.eql(125000000);",
+                  "  pm.expect(body.change.delta).to.eql(body.change.newBalance - body.change.previousBalance);",
+                  "});",
+                  "pm.test('changedAt berupa timestamp valid', () => {",
+                  "  pm.expect(Number.isNaN(Date.parse(body.change.changedAt))).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Balance Changes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{assetId}}/balance-changes?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "{{assetId}}", "balance-changes"],
+              "query": [{ "key": "limit", "value": "20", "description": "1-100, default 20" }]
+            },
+            "description": "Riwayat perubahan saldo aset, terbaru di atas. `previousBalance: null` berarti saldo awal saat aset dibuat."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items;",
+                  "pm.test('200 OK + array', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(items).to.be.an('array');",
+                  "});",
+                  "pm.test('Urut terbaru di atas', () => {",
+                  "  for (let i = 1; i < items.length; i++) {",
+                  "    pm.expect(Date.parse(items[i - 1].changedAt)).to.be.at.least(Date.parse(items[i].changedAt));",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Asset",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{investmentAssetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "{{investmentAssetId}}"]
+            },
+            "description": "Hapus aset beserta riwayat saldonya. Contoh ini menghapus aset investasi dari `Create Asset (Investment)`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Networth",
+      "item": [
+        {
+          "name": "Summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/networth/summary", "host": ["{{baseUrl}}"], "path": ["networth", "summary"] },
+            "description": "Total cash, total investasi, networth (cash + investasi), dan total per kategori."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('networth = cash + investment', () => {",
+                  "  pm.expect(b.networth).to.be.closeTo(b.cash + b.investment, 0.001);",
+                  "  pm.expect(b.byCategory).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/networth/history?range=1M",
+              "host": ["{{baseUrl}}"],
+              "path": ["networth", "history"],
+              "query": [{ "key": "range", "value": "1M", "description": "1M | 3M | 6M | 1Y | 2Y (default 1M)" }]
+            },
+            "description": "Titik grafik networth: nilai terakhir per hari (zona Asia/Jakarta), dari `startDate` sampai `endDate` (hari ini)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "pm.test('200 OK + struktur benar', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(b.range).to.eql('1M');",
+                  "  pm.expect(b.startDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+                  "  pm.expect(b.endDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+                  "  pm.expect(b.points).to.be.an('array');",
+                  "});",
+                  "pm.test('Titik terakhir = hari ini (jika ada data)', () => {",
+                  "  if (b.points.length) pm.expect(b.points[b.points.length - 1].date).to.eql(b.endDate);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Negative Cases",
+      "description": "Contoh request yang harus ditolak. Jalankan setelah Register/Login dan Create Asset (Cash).",
+      "item": [
+        {
+          "name": "Register - input tidak valid (400)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"A b\",\n  \"email\": \"bukan-email\",\n  \"phone\": \"123\",\n  \"password\": \"short\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const e = pm.response.json().error;",
+                  "pm.test('400 VALIDATION_ERROR dengan detail per field', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(e.code).to.eql('VALIDATION_ERROR');",
+                  "  pm.expect(e.details.map((d) => d.field)).to.have.members(['username', 'email', 'phone', 'password']);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - password salah (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"password-salah\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 INVALID_CREDENTIALS', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assets - tanpa token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/assets", "host": ["{{baseUrl}}"], "path": ["assets"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 UNAUTHORIZED', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Asset - saldo negatif (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"cash\",\n  \"name\": \"Test\",\n  \"category\": \"Bank\",\n  \"balance\": -1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/assets", "host": ["{{baseUrl}}"], "path": ["assets"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 VALIDATION_ERROR', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Balance - saldo sama (400 NO_CHANGE)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"balance\": 125000000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{assetId}}/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "{{assetId}}", "balance"]
+            },
+            "description": "Jalankan setelah `Update Balance` (saldo sudah 125.000.000)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 NO_CHANGE', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('NO_CHANGE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Balance - asset tidak ada (404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"balance\": 1000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/assets/00000000-0000-4000-8000-000000000000/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "00000000-0000-4000-8000-000000000000", "balance"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 NOT_FOUND', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "History - range tidak valid (400)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/networth/history?range=5Y",
+              "host": ["{{baseUrl}}"],
+              "path": ["networth", "history"],
+              "query": [{ "key": "range", "value": "5Y" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('400 VALIDATION_ERROR', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
