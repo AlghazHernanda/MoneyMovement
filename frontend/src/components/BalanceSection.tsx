@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type Asset, type BalanceChange } from '../api/client';
-import { formatDateTime, formatDeltaIDR, formatIDR, formatMoneyInput, parseMoneyInput } from '../format';
+import { formatDateTime, formatMoneyInput, parseMoneyInput } from '../format';
+import { usePrivacy } from '../privacy/PrivacyContext';
 
 type Props = {
   asset: Asset;
@@ -15,6 +16,7 @@ const errorMessage = (err: unknown) =>
 
 /** Saldo saat ini + tombol Update + riwayat perubahan saldo. */
 export function BalanceSection({ asset, onUpdated }: Props) {
+  const { money, delta: fmtDelta } = usePrivacy();
   const [balance, setBalance] = useState(asset.balance);
   const [changes, setChanges] = useState<BalanceChange[] | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function BalanceSection({ asset, onUpdated }: Props) {
       <div className="balance-current">
         <div>
           <span className="muted">{label} saat ini</span>
-          <strong>{formatIDR(balance)}</strong>
+          <strong>{money(balance)}</strong>
         </div>
         {!editing && (
           <button type="button" className="btn primary small" onClick={startEditing}>
@@ -89,7 +91,7 @@ export function BalanceSection({ asset, onUpdated }: Props) {
       {lastChange && !editing && (
         <div className={`change-banner ${lastChange.delta >= 0 ? 'up' : 'down'}`} role="status">
           <strong>
-            {label} {lastChange.delta >= 0 ? 'bertambah' : 'berkurang'} {formatDeltaIDR(lastChange.delta)}
+            {label} {lastChange.delta >= 0 ? 'bertambah' : 'berkurang'} {fmtDelta(lastChange.delta)}
           </strong>
           <span>{formatDateTime(lastChange.changedAt)}</span>
         </div>
@@ -115,7 +117,7 @@ export function BalanceSection({ asset, onUpdated }: Props) {
             <p className={`delta-preview ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}`}>
               {delta === 0
                 ? `Sama dengan ${label.toLowerCase()} saat ini`
-                : `${delta > 0 ? 'Bertambah' : 'Berkurang'} ${formatDeltaIDR(delta)}`}
+                : `${delta > 0 ? 'Bertambah' : 'Berkurang'} ${fmtDelta(delta)}`}
             </p>
           )}
           {error && <p className="error" role="alert">{error}</p>}
@@ -143,12 +145,12 @@ export function BalanceSection({ asset, onUpdated }: Props) {
                   {c.previousBalance === null ? (
                     <span className="history-delta">{label} awal</span>
                   ) : (
-                    <span className={`history-delta ${c.delta >= 0 ? 'up' : 'down'}`}>{formatDeltaIDR(c.delta)}</span>
+                    <span className={`history-delta ${c.delta >= 0 ? 'up' : 'down'}`}>{fmtDelta(c.delta)}</span>
                   )}
                   <span className="history-balance">
                     {c.previousBalance === null
-                      ? formatIDR(c.newBalance)
-                      : `${formatIDR(c.previousBalance)} → ${formatIDR(c.newBalance)}`}
+                      ? money(c.newBalance)
+                      : `${money(c.previousBalance)} → ${money(c.newBalance)}`}
                   </span>
                 </div>
                 <time className="muted" dateTime={c.changedAt}>

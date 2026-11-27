@@ -1,10 +1,12 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { HistoryPoint, Range } from '../api/client';
-import { formatCompactIDR, formatFullDate, formatIDR, formatShortDate } from '../format';
+import { formatFullDate, formatShortDate } from '../format';
+import { usePrivacy } from '../privacy/PrivacyContext';
 
 type Props = { points: HistoryPoint[]; range: Range };
 
 export function NetworthChart({ points, range }: Props) {
+  const { money, compact } = usePrivacy();
   if (points.length === 0) {
     return <div className="chart-empty">Belum ada data. Tambahkan cash atau investasi untuk mulai melacak networth.</div>;
   }
@@ -27,10 +29,10 @@ export function NetworthChart({ points, range }: Props) {
             tick={{ fontSize: 11 }}
             minTickGap={24}
           />
-          <YAxis tickFormatter={formatCompactIDR} tick={{ fontSize: 11 }} width={56} />
+          <YAxis tickFormatter={compact} tick={{ fontSize: 11 }} width={56} />
           <Tooltip
             labelFormatter={(d) => formatFullDate(String(d))}
-            formatter={(v) => [formatIDR(Number(v)), 'Networth']}
+            formatter={(v) => [money(Number(v)), 'Networth']}
           />
           <Area type="stepAfter" dataKey="networth" stroke="#0f766e" strokeWidth={2} fill="url(#nwFill)" />
         </AreaChart>

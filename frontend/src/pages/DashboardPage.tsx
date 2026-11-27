@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError, type History, type Range, type Summary } from '../api/client';
 import { NetworthChart } from '../components/NetworthChart';
-import { formatIDR } from '../format';
+import { formatPercent } from '../format';
+import { usePrivacy } from '../privacy/PrivacyContext';
 
 const RANGES: { value: Range; label: string }[] = [
   { value: '1M', label: '1B' },
@@ -12,6 +13,7 @@ const RANGES: { value: Range; label: string }[] = [
 ];
 
 export function DashboardPage() {
+  const { money } = usePrivacy();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [history, setHistory] = useState<History | null>(null);
   const [range, setRange] = useState<Range>('1M');
@@ -38,14 +40,19 @@ export function DashboardPage() {
   const change = first !== undefined && last !== undefined ? last - first : null;
   const changePct = change !== null && first ? (change / first) * 100 : null;
 
+  // Persentase komposisi terhadap total networth (0 jika networth 0).
+  const pctOf = (value: number) => (summary && summary.networth > 0 ? (value / summary.networth) * 100 : 0);
+  const cashPct = pctOf(summary?.cash ?? 0);
+  const investPct = pctOf(summary?.investment ?? 0);
+
   return (
     <div className="page">
       <header className="hero">
         <span className="hero-label">Total Networth</span>
-        <strong className="hero-value">{summary ? formatIDR(summary.networth) : '…'}</strong>
+        <strong className="hero-value">{summary ? money(summary.networth) : '…'}</strong>
         {change !== null && (
           <span className={`hero-change ${change >= 0 ? 'up' : 'down'}`}>
-            {change >= 0 ? '▲' : '▼'} {formatIDR(Math.abs(change))}
+            {change >= 0 ? '▲' : '▼'} {money(Math.abs(change))}
             {changePct !== null && ` (${changePct.toFixed(1)}%)`} dalam rentang ini
           </span>
         )}
@@ -56,11 +63,11 @@ export function DashboardPage() {
       <section className="split">
         <div className="card stat">
           <span>Cash</span>
-          <strong>{summary ? formatIDR(summary.cash) : '…'}</strong>
+          <strong>{summary ? money(summary.cash) : '…'}</strong>
         </div>
         <div className="card stat">
           <span>Investasi</span>
-          <strong>{summary ? formatIDR(summary.investment) : '…'}</strong>
+          <strong>{summary ? money(summary.investment) : '…'}</strong>
         </div>
       </section>
 
@@ -87,18 +94,36 @@ export function DashboardPage() {
       {summary && summary.byCategory.length > 0 && (
         <section className="card">
           <h3>Komposisi</h3>
+
+          <div className="mix">
+            <div className="bar mix-bar" role="img" aria-label={`Cash ${formatPercent(cashPct)}, Investasi ${formatPercent(investPct)}`}>
+              <div className="bar-fill cash" style={{ width: `${cashPct}%` }} />
+              <div className="bar-fill investment" style={{ width: `${investPct}%` }} />
+            </div>
+            <div className="mix-legend">
+              <span>
+                <i className="dot cash" /> Cash <strong>{formatPercent(cashPct)}</strong>
+              </span>
+              <span>
+                <i className="dot investment" /> Investasi <strong>{formatPercent(investPct)}</strong>
+              </span>
+            </div>
+          </div>
+
           <ul className="breakdown">
             {[...summary.byCategory]
               .sort((a, b) => b.total - a.total)
               .map((c) => {
-                const pct = summary.networth ? (c.total / summary.networth) * 100 : 0;
+                const pct = pctOf(c.total);
                 return (
                   <li key={`${c.type}:${c.category}`}>
                     <div className="breakdown-row">
                       <span>
                         {c.category} <small className="muted">· {c.type === 'cash' ? 'Cash' : 'Investasi'}</small>
                       </span>
-                      <span>{formatIDR(c.total)}</span>
+                      <span>
+                        {money(c.total)} <strong className="pct">{formatPercent(pct)}</strong>
+                      </span>
                     </div>
                     <div className="bar">
                       <div className={`bar-fill ${c.type}`} style={{ width: `${pct}%` }} />

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type Asset, type AssetType } from '../api/client';
 import { AssetSheet } from '../components/AssetSheet';
-import { formatIDR } from '../format';
+import { usePrivacy } from '../privacy/PrivacyContext';
 
 type SheetState = { mode: 'create' } | { mode: 'edit'; asset: Asset } | null;
 
 export function AssetsPage({ type }: { type: AssetType }) {
+  const { money } = usePrivacy();
   const [items, setItems] = useState<Asset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetState>(null);
@@ -36,7 +37,7 @@ export function AssetsPage({ type }: { type: AssetType }) {
     <div className="page">
       <header className="hero">
         <span className="hero-label">Total {title}</span>
-        <strong className="hero-value">{items ? formatIDR(total) : '…'}</strong>
+        <strong className="hero-value">{items ? money(total) : '…'}</strong>
       </header>
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -56,14 +57,14 @@ export function AssetsPage({ type }: { type: AssetType }) {
         <section className="card" key={category}>
           <div className="section-head">
             <h3>{category}</h3>
-            <span className="muted">{formatIDR(assets.reduce((s, a) => s + a.balance, 0))}</span>
+            <span className="muted">{money(assets.reduce((s, a) => s + a.balance, 0))}</span>
           </div>
           <ul className="asset-list">
             {assets.map((a) => (
               <li key={a.id}>
                 <button className="asset-row" onClick={() => setSheet({ mode: 'edit', asset: a })}>
                   <span>{a.name}</span>
-                  <strong>{formatIDR(a.balance)}</strong>
+                  <strong>{money(a.balance)}</strong>
                 </button>
               </li>
             ))}

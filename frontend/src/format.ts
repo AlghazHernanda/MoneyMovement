@@ -31,6 +31,12 @@ export const formatFullDate = (iso: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
+/** Persen 1 desimal ala Indonesia: 95,5%. Nilai > 0 yang sangat kecil ditampilkan "<0,1%". */
+export function formatPercent(value: number): string {
+  if (value > 0 && value < 0.1) return '<0,1%';
+  return `${value.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
 /** Selisih bertanda: "+Rp 5.000.000" / "−Rp 2.000.000". */
 export const formatDeltaIDR = (delta: number) => `${delta >= 0 ? '+' : '−'}${formatIDR(Math.abs(delta))}`;
 
