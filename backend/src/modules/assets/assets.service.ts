@@ -56,7 +56,12 @@ export async function createAsset(db: SupabaseClient, userId: string, input: Cre
 }
 
 export async function updateAsset(db: SupabaseClient, id: string, input: UpdateAssetInput) {
-  const { data, error } = await db.from('assets').update(input).eq('id', id).select(COLUMNS).maybeSingle();
+  const { data, error } = await db
+    .from('assets')
+    .update(input)
+    .eq('id', id)
+    .select(COLUMNS)
+    .maybeSingle();
   if (error) throw error;
   if (!data) throw notFound('Aset tidak ditemukan');
   return toAssetDto(data);
@@ -73,7 +78,10 @@ export async function deleteAsset(db: SupabaseClient, id: string) {
  * Saldo yang sama dengan saldo saat ini ditolak supaya tidak ada riwayat kosong.
  */
 export async function updateBalance(db: SupabaseClient, id: string, balance: number) {
-  const { data, error } = await db.rpc('update_asset_balance', { p_asset_id: id, p_balance: balance });
+  const { data, error } = await db.rpc('update_asset_balance', {
+    p_asset_id: id,
+    p_balance: balance,
+  });
   if (error) throw error;
   if (!data) throw notFound('Aset tidak ditemukan');
 
@@ -85,7 +93,11 @@ export async function updateBalance(db: SupabaseClient, id: string, balance: num
 }
 
 export async function listBalanceChanges(db: SupabaseClient, assetId: string, limit: number) {
-  const { data: asset, error: assetError } = await db.from('assets').select('id').eq('id', assetId).maybeSingle();
+  const { data: asset, error: assetError } = await db
+    .from('assets')
+    .select('id')
+    .eq('id', assetId)
+    .maybeSingle();
   if (assetError) throw assetError;
   if (!asset) throw notFound('Aset tidak ditemukan');
 

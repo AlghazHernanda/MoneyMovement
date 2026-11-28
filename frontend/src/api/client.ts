@@ -3,7 +3,7 @@ const SESSION_KEY = 'mm.session';
 
 export type Session = { accessToken: string; refreshToken: string; expiresAt?: number };
 export type User = { id: string; username: string; email: string; phone: string };
-export type AssetType = 'cash' | 'investment';
+export type AssetType = 'cash' | 'investment' | 'liability';
 export type Asset = {
   id: string;
   type: AssetType;
@@ -25,11 +25,12 @@ export type BalanceChange = {
 export type Summary = {
   cash: number;
   investment: number;
+  liability: number;
   networth: number;
   byCategory: { type: AssetType; category: string; total: number }[];
 };
 export type Range = '1M' | '3M' | '6M' | '1Y' | '2Y';
-export type HistoryPoint = { date: string; cash: number; investment: number; networth: number };
+export type HistoryPoint = { date: string; cash: number; investment: number; liability: number; networth: number };
 export type History = { range: Range; startDate: string; endDate: string; points: HistoryPoint[] };
 
 export class ApiError extends Error {

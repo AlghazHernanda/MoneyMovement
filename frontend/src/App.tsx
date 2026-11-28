@@ -59,6 +59,14 @@ const EyeOffIcon = () => (
   </svg>
 );
 
+/** Kartu kredit: liabilitas */
+const LiabilityIcon = () => (
+  <svg {...iconProps}>
+    <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+    <path d="M2.5 10h19M6.5 15h4" />
+  </svg>
+);
+
 function ProtectedLayout() {
   const { user, logout } = useAuth();
   const { hidden, toggle: toggleHidden } = usePrivacy();
@@ -97,6 +105,10 @@ function ProtectedLayout() {
           <span className="nav-icon"><InvestIcon /></span>
           <span className="nav-label">Investasi</span>
         </NavLink>
+        <NavLink to="/liabilitas">
+          <span className="nav-icon"><LiabilityIcon /></span>
+          <span className="nav-label">Liabilitas</span>
+        </NavLink>
       </nav>
     </div>
   );
@@ -119,6 +131,7 @@ export function App() {
         <Route index element={<DashboardPage />} />
         <Route path="cash" element={<AssetsPage key="cash" type="cash" />} />
         <Route path="investasi" element={<AssetsPage key="investment" type="investment" />} />
+        <Route path="liabilitas" element={<AssetsPage key="liability" type="liability" />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

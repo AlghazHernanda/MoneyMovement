@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type Asset, type AssetType } from '../api/client';
 import { AssetSheet } from '../components/AssetSheet';
+import { ASSET_TYPES } from '../assetTypes';
 import { usePrivacy } from '../privacy/PrivacyContext';
 
 type SheetState = { mode: 'create' } | { mode: 'edit'; asset: Asset } | null;
@@ -31,7 +32,8 @@ export function AssetsPage({ type }: { type: AssetType }) {
   }, [items]);
 
   const total = (items ?? []).reduce((sum, a) => sum + a.balance, 0);
-  const title = type === 'cash' ? 'Cash' : 'Investasi';
+  const meta = ASSET_TYPES[type];
+  const title = meta.title;
 
   return (
     <div className="page">
@@ -45,11 +47,7 @@ export function AssetsPage({ type }: { type: AssetType }) {
       {items && items.length === 0 && (
         <div className="card empty">
           <p>Belum ada {title.toLowerCase()}.</p>
-          <p className="muted">
-            {type === 'cash'
-              ? 'Tambahkan saldo per bank atau e-wallet, misalnya BCA dan Mandiri.'
-              : 'Tambahkan nilai investasi, misalnya saham dan crypto.'}
-          </p>
+          <p className="muted">{meta.emptyHint}</p>
         </div>
       )}
 

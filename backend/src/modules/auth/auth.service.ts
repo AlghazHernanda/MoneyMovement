@@ -94,7 +94,9 @@ export function createAuthService({ admin, createAnon }: AuthDeps) {
     },
 
     async refresh(refreshToken: string): Promise<{ session: SessionDto }> {
-      const { data, error } = await createAnon().auth.refreshSession({ refresh_token: refreshToken });
+      const { data, error } = await createAnon().auth.refreshSession({
+        refresh_token: refreshToken,
+      });
       if (error || !data.session) {
         throw unauthorized('Sesi berakhir, silakan login ulang', 'REFRESH_FAILED');
       }

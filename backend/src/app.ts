@@ -31,21 +31,31 @@ export async function buildApp() {
 
   app.setErrorHandler((error: FastifyError | AppError | Error, request, reply) => {
     if (error instanceof ValidationError) {
-      return reply.status(400).send({ error: { code: error.code, message: error.message, details: error.details } });
+      return reply
+        .status(400)
+        .send({ error: { code: error.code, message: error.message, details: error.details } });
     }
     if (error instanceof AppError) {
-      return reply.status(error.statusCode).send({ error: { code: error.code, message: error.message } });
+      return reply
+        .status(error.statusCode)
+        .send({ error: { code: error.code, message: error.message } });
     }
     const status = (error as FastifyError).statusCode;
     if (status && status < 500) {
-      return reply.status(status).send({ error: { code: 'REQUEST_ERROR', message: error.message } });
+      return reply
+        .status(status)
+        .send({ error: { code: 'REQUEST_ERROR', message: error.message } });
     }
     request.log.error({ err: error }, 'Unhandled error');
-    return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: 'Terjadi kesalahan pada server' } });
+    return reply
+      .status(500)
+      .send({ error: { code: 'INTERNAL_ERROR', message: 'Terjadi kesalahan pada server' } });
   });
 
   app.setNotFoundHandler((_request, reply) =>
-    reply.status(404).send({ error: { code: 'ROUTE_NOT_FOUND', message: 'Endpoint tidak ditemukan' } }),
+    reply
+      .status(404)
+      .send({ error: { code: 'ROUTE_NOT_FOUND', message: 'Endpoint tidak ditemukan' } }),
   );
 
   app.get('/health', async () => ({ status: 'ok' }));

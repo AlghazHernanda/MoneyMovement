@@ -1,6 +1,8 @@
 # MoneyMovement
 
-Aplikasi web mobile-first untuk mencatat aset (cash & investasi) dan melacak networth.
+Aplikasi web mobile-first untuk mencatat aset (cash & investasi) dan liabilitas (utang), serta melacak networth.
+
+**Networth = Cash + Investasi − Liabilitas.**
 
 ```
 frontend/  React + Vite + TypeScript (mobile-first UI, grafik dengan Recharts)
@@ -20,7 +22,7 @@ backend/src/modules/<modul>/
 ```
 Semua modul (`auth`, `assets`, `networth`) memakai pola ini.
 
-Migration dijalankan berurutan: `001_init.sql`, lalu `002_asset_balance_changes.sql`.
+Migration dijalankan berurutan: `001_init.sql`, `002_asset_balance_changes.sql`, lalu `003_liabilities.sql`.
 
 ## Setup
 
@@ -52,13 +54,13 @@ Untuk mencoba dari HP di jaringan Wi-Fi yang sama, buka `http://<IP-laptop>:5173
 | POST | `/auth/login` | - | `{ username, password }` |
 | POST | `/auth/refresh` | - | `{ refreshToken }` |
 | GET | `/auth/me` | Bearer | profil user |
-| GET | `/assets?type=cash\|investment` | Bearer | daftar aset |
-| POST | `/assets` | Bearer | `{ type, name, category, balance }` |
+| GET | `/assets?type=cash\|investment\|liability` | Bearer | daftar aset |
+| POST | `/assets` | Bearer | `{ type: cash\|investment\|liability, name, category, balance }` (untuk liability, `balance` = sisa utang, positif) |
 | PATCH | `/assets/:id` | Bearer | `{ name?, category?, balance? }` |
 | DELETE | `/assets/:id` | Bearer | hapus aset |
 | POST | `/assets/:id/balance` | Bearer | `{ balance }` set saldo baru, response berisi selisih + timestamp |
 | GET | `/assets/:id/balance-changes?limit=20` | Bearer | riwayat perubahan saldo, terbaru di atas |
-| GET | `/networth/summary` | Bearer | total cash, investasi, networth, per kategori |
+| GET | `/networth/summary` | Bearer | total cash, investasi, liabilitas, networth, per kategori |
 | GET | `/networth/history?range=1M\|3M\|6M\|1Y\|2Y` | Bearer | titik grafik harian (WIB) |
 
 Format error: `{ "error": { "code", "message", "details"? } }`.

@@ -60,7 +60,7 @@ main { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); 
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px; height: calc(var(--nav-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   background: var(--card); border-top: 1px solid var(--border); z-index: 10;
 }
 .bottom-nav a {
@@ -100,6 +100,9 @@ main { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); 
 .stat { display: flex; flex-direction: column; gap: 4px; }
 .stat span { font-size: 0.8rem; color: var(--muted); }
 .stat strong { font-size: 1rem; word-break: break-word; }
+.stat.wide { grid-column: 1 / -1; }
+.stat.liability { border-left: 4px solid var(--danger); }
+.stat.liability strong { color: var(--danger); }
 .section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
 .empty { text-align: center; }
 .empty p { margin: 4px 0; }
@@ -125,8 +128,12 @@ main { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); 
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .dot.cash { background: var(--primary); }
 .dot.investment { background: var(--invest); }
+.dot.liability { background: var(--danger); }
 .bar-fill.cash { background: var(--primary); }
 .bar-fill.investment { background: var(--invest); }
+.bar-fill.liability { background: var(--danger); }
+.pct.debt { color: var(--danger); }
+.debt-ratio { margin: 4px 0 0; font-size: 0.85rem; }
 
 /* ---------- Asset list ---------- */
 .asset-list { list-style: none; margin: 0; padding: 0; }

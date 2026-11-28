@@ -1,12 +1,8 @@
 import { useId, useState, type FormEvent } from 'react';
 import { ApiError, type Asset, type AssetType } from '../api/client';
 import { formatMoneyInput, parseMoneyInput } from '../format';
+import { ASSET_TYPES } from '../assetTypes';
 import { BalanceSection } from './BalanceSection';
-
-const CATEGORY_SUGGESTIONS: Record<AssetType, string[]> = {
-  cash: ['Bank', 'E-Wallet', 'Tunai'],
-  investment: ['Saham', 'Crypto', 'Reksa Dana', 'Emas', 'Obligasi', 'Deposito'],
-};
 
 const iconProps = {
   width: 18,
@@ -56,13 +52,12 @@ export function AssetSheet(props: Props) {
   const { type, asset, onClose } = props;
   const formId = useId();
   const [name, setName] = useState(asset?.name ?? '');
-  const [category, setCategory] = useState(asset?.category ?? CATEGORY_SUGGESTIONS[type][0]!);
+  const [category, setCategory] = useState(asset?.category ?? ASSET_TYPES[type].categories[0]!);
   const [balance, setBalance] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const label = type === 'cash' ? 'Cash' : 'Investasi';
-  const namePlaceholder = type === 'cash' ? 'contoh: BCA, GoPay' : 'contoh: BBCA, Bitcoin';
+  const { title: label, namePlaceholder, categories, createBalanceLabel } = ASSET_TYPES[type];
 
   async function run(action: () => Promise<void>) {
     setError(null);
@@ -108,14 +103,14 @@ export function AssetSheet(props: Props) {
               maxLength={40}
             />
             <datalist id={`categories-${type}`}>
-              {CATEGORY_SUGGESTIONS[type].map((c) => (
+              {categories.map((c) => (
                 <option key={c} value={c} />
               ))}
             </datalist>
           </label>
           {!asset && (
             <label>
-              {type === 'cash' ? 'Saldo (Rp)' : 'Nilai saat ini (Rp)'}
+              {createBalanceLabel}
               <input
                 inputMode="numeric"
                 value={formatMoneyInput(balance)}

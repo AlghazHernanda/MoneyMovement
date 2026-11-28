@@ -8,7 +8,8 @@ import { createAuthService, type AuthService } from './auth.service.js';
 export type AuthRoutesOptions = { service?: AuthService };
 
 export async function authRoutes(app: FastifyInstance, opts: AuthRoutesOptions = {}) {
-  const service = opts.service ?? createAuthService({ admin: supabaseAdmin, createAnon: createAnonClient });
+  const service =
+    opts.service ?? createAuthService({ admin: supabaseAdmin, createAnon: createAnonClient });
 
   // Rate limit lebih ketat untuk endpoint kredensial (anti brute force).
   const strict = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };

@@ -194,7 +194,7 @@
               "raw": "{\n  \"type\": \"cash\",\n  \"name\": \"BCA\",\n  \"category\": \"Bank\",\n  \"balance\": 120000000\n}"
             },
             "url": { "raw": "{{baseUrl}}/assets", "host": ["{{baseUrl}}"], "path": ["assets"] },
-            "description": "Tambah aset. `type`: `cash` | `investment`. `balance` >= 0 (angka, maks 2 desimal). Saldo awal otomatis tercatat di riwayat saldo.\n\nMenyimpan `assetId` ke environment."
+            "description": "Tambah aset. `type`: `cash` | `investment` | `liability`. `balance` >= 0 (angka, maks 2 desimal). Saldo awal otomatis tercatat di riwayat saldo.\n\nMenyimpan `assetId` ke environment."
           },
           "event": [
             {
@@ -244,6 +244,66 @@
           ]
         },
         {
+          "name": "Create Asset (Liability)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"liability\",\n  \"name\": \"KPR BCA\",\n  \"category\": \"KPR\",\n  \"balance\": 30000000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/assets", "host": ["{{baseUrl}}"], "path": ["assets"] },
+            "description": "Contoh liabilitas (utang). `balance` adalah SISA UTANG dan bernilai positif. Liabilitas mengurangi networth.\n\nMenyimpan `liabilityAssetId` ke environment. Untuk membayar cicilan, pakai `Update Balance` dengan saldo yang lebih kecil."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created + type liability', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(body.item.type).to.eql('liability');",
+                  "  pm.expect(body.item.balance).to.eql(30000000);",
+                  "});",
+                  "if (body.item) pm.environment.set('liabilityAssetId', body.item.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay Liability (Update Balance)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"balance\": 25000000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{liabilityAssetId}}/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "{{liabilityAssetId}}", "balance"]
+            },
+            "description": "Bayar cicilan: sisa utang 30.000.000 -> 25.000.000 menghasilkan `change.delta = -5000000` dan networth naik 5.000.000."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK, utang berkurang 5jt', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.item.balance).to.eql(25000000);",
+                  "  pm.expect(body.change.delta).to.eql(-5000000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "List Assets",
           "request": {
             "method": "GET",
@@ -255,7 +315,7 @@
                 { "key": "type", "value": "cash", "description": "Opsional: cash | investment. Kosongkan untuk semua." }
               ]
             },
-            "description": "Daftar aset milik user, urut dari yang paling lama dibuat."
+            "description": "Daftar aset milik user, urut dari yang paling lama dibuat. Filter `type`: cash | investment | liability."
           },
           "event": [
             {
@@ -410,8 +470,9 @@
                 "exec": [
                   "const b = pm.response.json();",
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.test('networth = cash + investment', () => {",
-                  "  pm.expect(b.networth).to.be.closeTo(b.cash + b.investment, 0.001);",
+                  "pm.test('networth = cash + investment - liability', () => {",
+                  "  pm.expect(b.networth).to.be.closeTo(b.cash + b.investment - b.liability, 0.001);",
+                  "  pm.expect(b.liability).to.be.a('number');",
                   "  pm.expect(b.byCategory).to.be.an('array');",
                   "});"
                 ]

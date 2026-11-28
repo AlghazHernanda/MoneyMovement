@@ -21,7 +21,9 @@ export async function assetRoutes(app: FastifyInstance) {
 
   app.post('/', async (request, reply) => {
     const input = parse(createAssetSchema, request.body);
-    return reply.status(201).send({ item: await assets.createAsset(request.db, request.userId, input) });
+    return reply
+      .status(201)
+      .send({ item: await assets.createAsset(request.db, request.userId, input) });
   });
 
   app.patch('/:id', async (request) => {

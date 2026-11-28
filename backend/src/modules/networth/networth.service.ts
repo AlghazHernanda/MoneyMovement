@@ -5,9 +5,20 @@ export const TIMEZONE = 'Asia/Jakarta';
 const TZ_OFFSET = '+07:00'; // Asia/Jakarta tidak memakai DST
 
 export type AssetBalanceRow = { type: string; category: string; balance: number | string };
-export type SnapshotValues = { total_cash: number | string; total_investment: number | string; networth: number | string };
+export type SnapshotValues = {
+  total_cash: number | string;
+  total_investment: number | string;
+  total_liability: number | string;
+  networth: number | string;
+};
 export type DailySnapshotRow = SnapshotValues & { day: string };
-export type Point = { date: string; cash: number; investment: number; networth: number };
+export type Point = {
+  date: string;
+  cash: number;
+  investment: number;
+  liability: number;
+  networth: number;
+};
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -36,15 +47,18 @@ export function rangeStartDate(today: string, months: number): string {
   return `${ty}-${String(tm + 1).padStart(2, '0')}-${String(td).padStart(2, '0')}`;
 }
 
-/** Total cash, investasi, networth, dan total per (type, category). */
+/** Total cash, investasi, liabilitas, networth (= cash + investasi - liabilitas), dan total per (type, category). */
 export function computeSummary(rows: AssetBalanceRow[]) {
   let cash = 0;
   let investment = 0;
+  let liability = 0;
   const byCategory = new Map<string, { type: string; category: string; total: number }>();
   for (const row of rows) {
     const value = Number(row.balance);
     if (row.type === 'cash') cash += value;
-    else investment += value;
+    else if (row.type === 'investment') investment += value;
+    else if (row.type === 'liability') liability += value;
+    else continue; // tipe tidak dikenal: abaikan
     const key = `${row.type}:${row.category}`;
     const entry = byCategory.get(key) ?? { type: row.type, category: row.category, total: 0 };
     entry.total += value;
@@ -53,7 +67,8 @@ export function computeSummary(rows: AssetBalanceRow[]) {
   return {
     cash: round2(cash),
     investment: round2(investment),
-    networth: round2(cash + investment),
+    liability: round2(liability),
+    networth: round2(cash + investment - liability),
     byCategory: [...byCategory.values()].map((c) => ({ ...c, total: round2(c.total) })),
   };
 }
@@ -62,6 +77,7 @@ const toPoint = (date: string, s: SnapshotValues): Point => ({
   date,
   cash: Number(s.total_cash),
   investment: Number(s.total_investment),
+  liability: Number(s.total_liability ?? 0),
   networth: Number(s.networth),
 });
 
@@ -108,7 +124,7 @@ export async function getHistory(db: SupabaseClient, range: Range, now: Date = n
     db.rpc('networth_history', { p_start: startTs, p_tz: TIMEZONE }),
     db
       .from('networth_snapshots')
-      .select('total_cash, total_investment, networth')
+      .select('total_cash, total_investment, total_liability, networth')
       .lt('recorded_at', startTs)
       .order('recorded_at', { ascending: false })
       .order('id', { ascending: false })

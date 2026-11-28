@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type Asset, type BalanceChange } from '../api/client';
 import { formatDateTime, formatMoneyInput, parseMoneyInput } from '../format';
+import { ASSET_TYPES, isGoodChange } from '../assetTypes';
 import { usePrivacy } from '../privacy/PrivacyContext';
 
 type Props = {
@@ -28,7 +29,9 @@ export function BalanceSection({ asset, onUpdated }: Props) {
   const [lastChange, setLastChange] = useState<BalanceChange | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const label = asset.type === 'cash' ? 'Saldo' : 'Nilai';
+  const label = ASSET_TYPES[asset.type].balanceLabel;
+  // Hijau = networth naik. Untuk liabilitas, utang berkurang itu baik (hijau), utang bertambah buruk (merah).
+  const tone = (d: number) => (isGoodChange(asset.type, d) ? 'up' : 'down');
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +92,7 @@ export function BalanceSection({ asset, onUpdated }: Props) {
       </div>
 
       {lastChange && !editing && (
-        <div className={`change-banner ${lastChange.delta >= 0 ? 'up' : 'down'}`} role="status">
+        <div className={`change-banner ${tone(lastChange.delta)}`} role="status">
           <strong>
             {label} {lastChange.delta >= 0 ? 'bertambah' : 'berkurang'} {fmtDelta(lastChange.delta)}
           </strong>
@@ -114,7 +117,7 @@ export function BalanceSection({ asset, onUpdated }: Props) {
             />
           </label>
           {hasInput && (
-            <p className={`delta-preview ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}`}>
+            <p className={`delta-preview ${delta === 0 ? '' : tone(delta)}`}>
               {delta === 0
                 ? `Sama dengan ${label.toLowerCase()} saat ini`
                 : `${delta > 0 ? 'Bertambah' : 'Berkurang'} ${fmtDelta(delta)}`}
@@ -145,7 +148,7 @@ export function BalanceSection({ asset, onUpdated }: Props) {
                   {c.previousBalance === null ? (
                     <span className="history-delta">{label} awal</span>
                   ) : (
-                    <span className={`history-delta ${c.delta >= 0 ? 'up' : 'down'}`}>{fmtDelta(c.delta)}</span>
+                    <span className={`history-delta ${tone(c.delta)}`}>{fmtDelta(c.delta)}</span>
                   )}
                   <span className="history-balance">
                     {c.previousBalance === null

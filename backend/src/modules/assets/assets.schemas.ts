@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const MAX_BALANCE = 1_000_000_000_000_000; // 1 kuadriliun IDR, di bawah batas numeric(18,2)
 
-export const assetType = z.enum(['cash', 'investment']);
+export const assetType = z.enum(['cash', 'investment', 'liability']);
 
 const balance = z
   .number({ error: 'Saldo harus berupa angka' })

@@ -38,12 +38,17 @@ export function DashboardPage() {
   const first = history?.points[0]?.networth;
   const last = history?.points.at(-1)?.networth;
   const change = first !== undefined && last !== undefined ? last - first : null;
-  const changePct = change !== null && first ? (change / first) * 100 : null;
+  const changePct = change !== null && first ? (change / Math.abs(first)) * 100 : null;
 
-  // Persentase komposisi terhadap total networth (0 jika networth 0).
-  const pctOf = (value: number) => (summary && summary.networth > 0 ? (value / summary.networth) * 100 : 0);
+  // Komposisi aset dihitung terhadap total aset (cash + investasi), bukan networth, karena networth sudah dikurangi liabilitas.
+  const totalAssets = summary ? summary.cash + summary.investment : 0;
+  const pctOf = (value: number) => (totalAssets > 0 ? (value / totalAssets) * 100 : 0);
   const cashPct = pctOf(summary?.cash ?? 0);
   const investPct = pctOf(summary?.investment ?? 0);
+  const assetCategories = (summary?.byCategory ?? []).filter((c) => c.type !== 'liability');
+  const liabilityCategories = (summary?.byCategory ?? []).filter((c) => c.type === 'liability');
+  const liabilityPct = (value: number) => (summary && summary.liability > 0 ? (value / summary.liability) * 100 : 0);
+  const debtRatio = totalAssets > 0 && summary ? (summary.liability / totalAssets) * 100 : 0;
 
   return (
     <div className="page">
@@ -69,6 +74,10 @@ export function DashboardPage() {
           <span>Investasi</span>
           <strong>{summary ? money(summary.investment) : '…'}</strong>
         </div>
+        <div className="card stat wide liability">
+          <span>Liabilitas (mengurangi networth)</span>
+          <strong>{summary ? `-${money(summary.liability)}` : '…'}</strong>
+        </div>
       </section>
 
       <section className="card">
@@ -91,9 +100,9 @@ export function DashboardPage() {
         {history ? <NetworthChart points={history.points} range={range} /> : <div className="chart-empty">Memuat…</div>}
       </section>
 
-      {summary && summary.byCategory.length > 0 && (
+      {summary && assetCategories.length > 0 && (
         <section className="card">
-          <h3>Komposisi</h3>
+          <h3>Komposisi Aset</h3>
 
           <div className="mix">
             <div className="bar mix-bar" role="img" aria-label={`Cash ${formatPercent(cashPct)}, Investasi ${formatPercent(investPct)}`}>
@@ -111,7 +120,7 @@ export function DashboardPage() {
           </div>
 
           <ul className="breakdown">
-            {[...summary.byCategory]
+            {[...assetCategories]
               .sort((a, b) => b.total - a.total)
               .map((c) => {
                 const pct = pctOf(c.total);
@@ -127,6 +136,35 @@ export function DashboardPage() {
                     </div>
                     <div className="bar">
                       <div className={`bar-fill ${c.type}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+        </section>
+      )}
+
+      {summary && liabilityCategories.length > 0 && (
+        <section className="card">
+          <h3>Liabilitas</h3>
+          <p className="muted debt-ratio">
+            Total utang <strong>{formatPercent(debtRatio)}</strong> dari total aset
+          </p>
+          <ul className="breakdown">
+            {[...liabilityCategories]
+              .sort((a, b) => b.total - a.total)
+              .map((c) => {
+                const pct = liabilityPct(c.total);
+                return (
+                  <li key={c.category}>
+                    <div className="breakdown-row">
+                      <span>{c.category}</span>
+                      <span>
+                        {money(c.total)} <strong className="pct debt">{formatPercent(pct)}</strong>
+                      </span>
+                    </div>
+                    <div className="bar">
+                      <div className="bar-fill liability" style={{ width: `%` }} />
                     </div>
                   </li>
                 );
